@@ -1,0 +1,113 @@
+{
+  "name": "sequelize-cache",
+  "description": "A model cache layer that integrates with Sequelize with support for Redis.",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JesseDocken/sequelize-cache"
+  },
+  "bugs": {
+    "url": "https://github.com/JesseDocken/sequelize-cache/issues"
+  },
+  "homepage": "https://github.com/JesseDocken/sequelize-cache",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "files": [
+    "dist/",
+    "sequelize-cached-model.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run unit/",
+    "test:integration": "vitest run test/",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.23",
+    "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@opentelemetry/api": "^1.9.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/chai": "^5.2.3",
+    "@types/config": "^3.3.5",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^25.5.0",
+    "@types/sinon": "^21.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/ui": "^4.1.2",
+    "debug": "^4.4.3",
+    "esdoc": "^1.1.0",
+    "eslint": "^9.39.4",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.2",
+    "eslint-plugin-jsdoc": "^61.7.1",
+    "eslint-plugin-n": "^17.24.0",
+    "globals": "^17.4.0",
+    "ioredis": "^5.10.1",
+    "mocha": "^11.7.5",
+    "pino": "^10.3.1",
+    "prom-client": "^15.1.3",
+    "sinon": "^21.0.3",
+    "sinon-chai": "^4.0.1",
+    "sqlite3": "^6.0.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.57.2",
+    "vitest": "^4.1.2",
+    "winston": "^3.19.0"
+  },
+  "peerDependencies": {
+    "ioredis": "^5.0.0",
+    "prom-client": "^15.0.0",
+    "@opentelemetry/api": "^1.0.0",
+    "debug": "^4.0.0",
+    "pino": "^8.0.0 || ^9.0.0 || ^10.0.0",
+    "winston": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "prom-client": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "debug": {
+      "optional": true
+    },
+    "pino": {
+      "optional": true
+    },
+    "winston": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "nodejs",
+    "sequelize",
+    "cache",
+    "db",
+    "redis"
+  ]
+}
