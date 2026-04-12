@@ -11,7 +11,7 @@ import _ from 'lodash';
 
 export default defineConfig([
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.vscode', 'eslint.config.ts'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.vscode', 'eslint.config.ts', 'vitest.config.ts'],
   },
   importPlugin.flatConfigs.recommended as any,
   importPlugin.flatConfigs.typescript as any,
@@ -53,12 +53,7 @@ export default defineConfig([
       'no-global-assign': 'off',
       'no-shadow': 'off',
       'no-loss-of-precision': 'warn',
-      'no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-        },
-      ],
+      'no-unused-vars': 'off',
       'no-var': 'error',
       'prefer-arrow-callback': 'error',
       'prefer-const': 'warn',
@@ -99,7 +94,7 @@ export default defineConfig([
         },
       ],
       '@typescript-eslint/ban-ts-comment': 'warn',
-      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { disallowTypeAnnotations: false }],
       '@typescript-eslint/no-deprecated': 'warn',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-import-type-side-effects': 'error',
@@ -117,8 +112,16 @@ export default defineConfig([
     },
   },
   {
+    // Module augmentation files - generic signatures must match the original declarations
+    files: ['sequelize-cached-model.d.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+    },
+  },
+  {
     // Test files - relax strict type checking rules
-    files: ['test/**/*.ts'],
+    files: ['unit/**/*.ts', 'test/**/*.ts'],
     rules: {
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',

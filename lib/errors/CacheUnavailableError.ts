@@ -1,5 +1,5 @@
 export class CacheUnavailableError extends Error {
-  constructor() {
-    super('Redis is not connected');
+  constructor(options: { cause: Error }) {
+    super('Redis is not connected', options);
   }
 }

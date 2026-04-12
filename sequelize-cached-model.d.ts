@@ -2,16 +2,16 @@ import 'sequelize';
 
 declare module 'sequelize' {
   interface FindOptions<TAttributes = any> {
-    cache?: CacheOptions;
+    cache?: boolean | FindCacheOptions;
   }
 
   interface NonNullFindOptions<TAttributes = any> {
-    cache?: CacheOptions;
+    cache?: FindCacheOptions;
   }
 
-  interface CacheOptions {
+  interface FindCacheOptions {
     enabled: boolean;
-    fallback: 'fail' | 'database';
+    fallback?: 'fail' | 'database';
   }
 
   interface GetAttribOptions {

@@ -1,8 +1,9 @@
-import { CacheClientOptions, EngineClient } from './EngineClient';
+import { EngineClient } from './EngineClient';
 import { CacheUnavailableError } from '../errors/CacheUnavailableError';
 
+import type { CacheClientOptions } from './EngineClient';
+import type { PeerContext } from '../peers';
 import type { Redis } from 'ioredis';
-import { PeerContext } from '../peers';
 
 export const KEY_DELIMITER = ':';
 const REDIS_NAMESPACE = 'modelcache';
@@ -10,11 +11,13 @@ const REDIS_NAMESPACE = 'modelcache';
 export class RedisClient extends EngineClient {
   private conn: Redis;
   private metricPrefix: string;
+  private namespace: string;
 
   constructor(options: CacheClientOptions, context: PeerContext) {
     super(options, context);
-    this.conn = options.connection;
+    this.conn = options.engine.connection;
     this.metricPrefix = options.metricPrefix;
+    this.namespace = options.caching?.namespace || REDIS_NAMESPACE;
   }
 
   /**
@@ -32,14 +35,14 @@ export class RedisClient extends EngineClient {
     value: M,
     options?: { expiresIn?: number }
   ) {
-    this.ctx.log.debug(`Setting key %s in Redis as: %s`, key, this.buildKey([REDIS_NAMESPACE, prefix, key]));
+    this.ctx.log.debug('Setting key %s in Redis as: %s', key, this.buildKey([this.namespace, prefix, key]));
     const stopSetTimer = this.ctx.metrics.cacheOperationDuration.startTimer({
       component: this.metricPrefix,
       operation: 'set',
     });
 
     try {
-      const redisKey = this.buildKey([REDIS_NAMESPACE, prefix, key]);
+      const redisKey = this.buildKey([this.namespace, prefix, key]);
       const redisValue = JSON.stringify(value, this.opts.codecs.serializer);
 
       if (options?.expiresIn) {
@@ -72,7 +75,7 @@ export class RedisClient extends EngineClient {
    * @returns The value from Redis or undefined.
    */
   async get<M>(keyPrefix: string, key: string): Promise<M | undefined> {
-    const redisKey = this.buildKey([REDIS_NAMESPACE, keyPrefix, key]);
+    const redisKey = this.buildKey([this.namespace, keyPrefix, key]);
     this.ctx.log.debug('Getting key $%s from Redis.', redisKey);
 
     const stopGetTimer = this.ctx.metrics.cacheOperationDuration.startTimer({
@@ -95,18 +98,14 @@ export class RedisClient extends EngineClient {
         operation: 'get',
       });
 
-      if (this.conn.status !== 'ready') {
-        throw new CacheUnavailableError();
-      }
-
-      return undefined as any;
+      throw new CacheUnavailableError({ cause: error });
     } finally {
       stopGetTimer();
     }
   }
 
   async internalGet<M>(keyPrefix: string, key: string): Promise<M | undefined> {
-    const redisKey = this.buildKey([REDIS_NAMESPACE, keyPrefix, key]);
+    const redisKey = this.buildKey([this.namespace, keyPrefix, key]);
     const redisValue = await this.conn.get(redisKey);
 
     if (!redisValue) {
@@ -126,7 +125,7 @@ export class RedisClient extends EngineClient {
       operation: 'del',
     });
 
-    const redisKey = this.buildKey([REDIS_NAMESPACE, keyPrefix, key]);
+    const redisKey = this.buildKey([this.namespace, keyPrefix, key]);
     try {
       await this.conn.del(redisKey);
 
@@ -154,7 +153,7 @@ export class RedisClient extends EngineClient {
       operation: 'delMany',
     });
 
-    const redisKeys = keys.map((key) => this.buildKey([REDIS_NAMESPACE, keyPrefix, key]));
+    const redisKeys = keys.map((key) => this.buildKey([this.namespace, keyPrefix, key]));
 
     try {
       await this.conn.del(redisKeys);
@@ -190,7 +189,7 @@ export class RedisClient extends EngineClient {
         const result = await this.conn.scan(
           cursor,
           'MATCH',
-          `${REDIS_NAMESPACE}${KEY_DELIMITER}${keyPrefix}${KEY_DELIMITER}*`,
+          `${this.namespace}${KEY_DELIMITER}${keyPrefix}${KEY_DELIMITER}*`,
           'COUNT',
           100
         );
@@ -208,7 +207,7 @@ export class RedisClient extends EngineClient {
         operation: 'delAll',
       });
     } catch (error) {
-      this.ctx.log.error(`Error deleting keys of ${REDIS_NAMESPACE}${KEY_DELIMITER}${keyPrefix} from Redis.`, error);
+      this.ctx.log.error(`Error deleting keys of ${this.namespace}${KEY_DELIMITER}${keyPrefix} from Redis.`, error);
       this.ctx.metrics.cacheOperationError.inc({
         component: this.metricPrefix,
         operation: 'delAll',

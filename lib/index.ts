@@ -11,14 +11,20 @@ import {
 } from 'lodash';
 import { Op } from 'sequelize';
 
-import { SequelizeModelCache } from './SequelizeModelCache';
 import { CacheUnavailableError } from './errors/CacheUnavailableError';
+import { PeerContext } from './peers';
+import { SequelizeModelCache } from './SequelizeModelCache';
 
 import type { KeyType, ModelKeyLookup } from './SequelizeModelCache';
+import type { Meter } from '@opentelemetry/api';
+import type { Redis } from 'ioredis';
+import type { Logger as PinoLogger } from 'pino';
+import type { Registry } from 'prom-client';
 import type {
   Attributes,
   CreationAttributes,
   DestroyOptions,
+  FindCacheOptions,
   FindOptions,
   Identifier,
   Model,
@@ -26,12 +32,7 @@ import type {
   UpdateOptions,
   WhereOptions,
 } from 'sequelize';
-import type { Redis } from 'ioredis';
-import type { Registry } from 'prom-client';
-import type { Meter } from '@opentelemetry/api';
-import type { Logger as PinoLogger } from 'pino';
 import type { Logger as WinstonLogger } from 'winston';
-import { PeerContext } from './peers';
 
 /**
  * Specifies the configuration options for the cache.
@@ -40,7 +41,10 @@ export type GlobalCacheOptions = {
   /**
    * The connection to the caching service (e.g., Redis, memcache).
    */
-  connection: Redis;
+  engine: {
+    connection: Redis;
+    type: 'redis';
+  }
   /**
    * An optional metrics provider. If provided, the cache will automatically
    * surface telemetry data to the given provider.
@@ -135,11 +139,11 @@ export class SequelizeCache {
   cacheModel<M extends Model>(model: ModelStatic<M>, options?: CacheOptions<M>): void;
   cacheModel(model: any, options?: UntypedCacheOptions): void;
   cacheModel<M extends Model = Model>(
-    model: ModelStatic<M> | any,
+    model: ModelStatic<M>,
     options: CacheOptions<M> | UntypedCacheOptions = {}
   ) {
     const cache = new SequelizeModelCache({
-      connection: this.#opt.connection,
+      engine: this.#opt.engine,
       caching: this.#opt.caching,
       modelOptions: {
         uniqueKeys: options.uniqueKeys as string[][],
@@ -159,9 +163,10 @@ export class SequelizeCache {
       if (isNil(id)) {
         return null;
       }
+      const cacheOpt = normalizeCacheOptions(opt);
       // If scope() has been called against the model, we don't want to use the cache, since that'll bypass
       // the scopes.
-      if (await shouldUseCache(this, keys, id, opt)) {
+      if (shouldUseCache(this, keys, id, opt)) {
         const metricsOptions = {
           model: model.name,
           method: 'findByPk',
@@ -172,15 +177,14 @@ export class SequelizeCache {
           const result = await cache.getModel('primary', [id]);
           if (options.hooks?.getOne && result) {
             ctx.log.debug('Invoking getOne hook for %s ID %s', model.name, id);
-            await options.hooks.getOne(result as M);
+            await options.hooks.getOne(result);
           }
           ctx.metrics.lookupCount.inc(metricsOptions);
           return result;
         } catch (e) {
           if (
             e instanceof CacheUnavailableError &&
-            opt?.cache &&
-            (isBoolean(opt.cache) || opt.cache.fallback !== 'fail')
+            (cacheOpt.fallback !== 'fail')
           ) {
             // If the cache engine is unavailable, fall back to using the database.
             metricsOptions.target = 'database';
@@ -211,8 +215,9 @@ export class SequelizeCache {
 
     model.findOne = async function (opt?: FindOptions<Attributes<M>>) {
       // We only support lookups against the primary key or the unique keys specified.
+      const cacheOpt = normalizeCacheOptions(opt);
       const key = keysMatchCandidates(Object.keys(opt?.where ?? {}), keys);
-      if ((await shouldUseCache(this, keys, undefined, opt)) && key) {
+      if (shouldUseCache(this, keys, undefined, opt) && key) {
         const cacheLookupComplete = ctx.metrics.lookupTime.startTimer();
         const metricsOptions = {
           model: model.name,
@@ -224,9 +229,10 @@ export class SequelizeCache {
           const fixed = transform(
             opt!.where as WhereOptions<Attributes<M>>,
             (r, v, k) => {
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- WhereOptions values are untyped at runtime
               r[k] = isObjectLike(v) && has(v, Op.eq) ? v[Op.eq] : v;
             },
-            {} as Record<any, any>
+            {} as Record<string, Identifier>
           );
 
           const fields = Object.keys(fixed);
@@ -239,15 +245,14 @@ export class SequelizeCache {
               fields,
               identifiers
             );
-            await options.hooks.getOne(result as M);
+            await options.hooks.getOne(result);
           }
           ctx.metrics.lookupCount.inc(metricsOptions);
           return result;
         } catch (e) {
           if (
             e instanceof CacheUnavailableError &&
-            opt?.cache &&
-            (isBoolean(opt.cache) || opt.cache.fallback !== 'fail')
+            (cacheOpt.fallback !== 'fail')
           ) {
             // If Redis is unavailable, fall back to the original database.
             metricsOptions.target = 'database';
@@ -284,6 +289,8 @@ export class SequelizeCache {
         // to roll back.
         if (!(e instanceof CacheUnavailableError)) {
           ctx.log.warn('Failed to invalidate for model %s', model.name, e);
+        } else {
+          ctx.log.debug('Cache unavailable, skipping invalidation for model %s', model.name, e);
         }
       }
     }
@@ -313,6 +320,8 @@ export class SequelizeCache {
         // since that will (potentially) rollback the transaction, which the cache should never do.
         if (!(e instanceof CacheUnavailableError)) {
           ctx.log.warn('Failed to invalidate for model %s', model.name, e);
+        } else {
+          ctx.log.debug('Cache unavailable, skipping invalidation for model %s', model.name, e);
         }
       }
     }
@@ -371,24 +380,26 @@ function keysMatchCandidates(
  * @param options the options provided with the query
  * @returns true if the cache can be used, otherwise false
  */
-async function shouldUseCache<M extends Model>(
+function shouldUseCache<M extends Model>(
   model: ModelStatic<M>,
   keys: ModelKeyLookup,
   id?: Identifier,
   options?: FindOptions<Attributes<M>>
-): Promise<boolean> {
+): boolean {
   // Leveraging the cache is currently opt-in.
   if (!options?.cache) {
     return false;
   }
 
-  if (options.cache.enabled !== true) {
+  const cacheOpt = normalizeCacheOptions(options);
+
+  if (cacheOpt.enabled !== true) {
     return false;
   }
 
   // Caching is unavailable if you use scopes.
   if ('scoped' in model && model.scoped) {
-    if (options.cache.fallback === 'fail') {
+    if (cacheOpt.fallback === 'fail') {
       throw new Error('Query is nonconformant');
     } else {
       return false;
@@ -401,7 +412,7 @@ async function shouldUseCache<M extends Model>(
   const notPermitted = difference(optionKeys, permittedKeys);
 
   if (notPermitted.length > 0) {
-    if (options.cache.fallback === 'fail') {
+    if (cacheOpt.fallback === 'fail') {
       throw new Error('Query is nonconformant');
     } else {
       return false;
@@ -426,17 +437,29 @@ async function shouldUseCache<M extends Model>(
         isString(v) ||
         isNumber(v) ||
         typeof v === 'bigint' ||
-        (isObjectLike(v) && isEqual(Object.keys(v), [Op.eq]))
+        (isObjectLike(v) && isEqual(Object.keys(v as object), [Op.eq]))
     )
   ) {
     return true;
   }
 
   // We didn't meet the above conditions, so we won't use the cache.
-  if (options.cache.fallback === 'fail') {
+  if (cacheOpt.fallback === 'fail') {
     throw new Error('Query is nonconformant');
   } else {
     return false;
+  }
+}
+
+function normalizeCacheOptions(options?: FindOptions<Model<any>>): FindCacheOptions {
+  if (!options?.cache) {
+    return {
+      enabled: false,
+    };
+  } else if (isBoolean(options.cache)) {
+    return { enabled: options.cache, fallback: 'database' };
+  } else {
+    return options.cache;
   }
 }
 

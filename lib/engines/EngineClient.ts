@@ -1,13 +1,14 @@
-import type { GlobalCacheOptions } from "..";
-import { UnsupportedEngineError } from "../errors/UnsupportedEngineError";
-import { PeerContext } from "../peers";
-import { RedisClient } from "./RedisClient";
+import { RedisClient } from './RedisClient';
+import { UnsupportedEngineError } from '../errors/UnsupportedEngineError';
+
+import type { GlobalCacheOptions } from '..';
+import type { PeerContext } from '../peers';
 
 export type CacheEntryOptions = {
   expiresIn?: number;
 };
 
-export type CacheClientOptions = Pick<GlobalCacheOptions, 'connection'> & {
+export type CacheClientOptions = Pick<GlobalCacheOptions, 'engine' | 'caching'> & {
   metricPrefix: string;
   codecs: {
     deserializer?: (key: string, value: any) => any;
@@ -35,15 +36,11 @@ export abstract class EngineClient {
   abstract delAll(prefix: string): Promise<void>;
 
   static get(options: CacheClientOptions, context: PeerContext): EngineClient {
-    try {
-      const { Redis } = require('ioredis');
-      if (options.connection instanceof Redis) {
+    switch (options.engine.type) {
+      case 'redis':
         return new RedisClient(options, context);
-      }
-    } catch {
-      // Not a Redis client
+      default:
+        throw new UnsupportedEngineError(options.engine.type);
     }
-
-    throw new UnsupportedEngineError(options.connection);
   }
 }

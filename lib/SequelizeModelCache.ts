@@ -1,20 +1,21 @@
-import { clone, invert, isArray, isEqual, isFunction, isNil, transform } from 'lodash';
+import { clone, identity, invert, isArray, isEqual, isFunction, isNil, transform } from 'lodash';
 import { DataTypes } from 'sequelize';
 
 import { EngineClient } from './engines/EngineClient';
 
+import type { GlobalCacheOptions } from '.';
+import type { PeerContext } from './peers';
 import type {
   AbstractDataType,
   AbstractDataTypeConstructor,
   Attributes,
+  CreationAttributes,
   Identifier,
   Model,
   ModelAttributeColumnOptions,
   ModelStatic,
   WhereOptions,
 } from 'sequelize';
-import { PeerContext } from './peers';
-import { GlobalCacheOptions } from '.';
 
 const DEFAULT_TTL = 3600; // Default TTL of 1 hour
 
@@ -27,7 +28,7 @@ const KeyPrefix: Record<KeyType, string> = {
 
 const prefixLookup = invert(KeyPrefix) as Record<string, KeyType>;
 
-export type CacheOptions = Pick<GlobalCacheOptions, 'connection' | 'caching'> & {
+export type CacheOptions = Pick<GlobalCacheOptions, 'engine' | 'caching'> & {
   modelOptions: {
     uniqueKeys?: string[][];
     timeToLive?: number;
@@ -35,6 +36,7 @@ export type CacheOptions = Pick<GlobalCacheOptions, 'connection' | 'caching'> & 
 };
 
 type KeyColumnType = typeof String | typeof Number | typeof BigInt | typeof Date;
+type KeyColumnValue = string | number | bigint | Date;
 type KeyColumnDefinition = {
   [k: string]: ModelAttributeColumnOptions<Model<any, any>>;
 };
@@ -63,7 +65,7 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
   };
   private keyNames: ModelKeyLookup;
   private modelTtl: number;
-  private typeMapping: Record<string, (v: any) => any>;
+  private typeMapping: Record<string, (v: any) => KeyColumnValue>;
 
   /**
    * Constructs an instance of SequelizeModelCache for the provided model.
@@ -75,7 +77,8 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
     this.ctx = context;
 
     this.cache = EngineClient.get({
-      connection: options.connection,
+      engine: options.engine,
+      caching: options.caching,
       metricPrefix: `model-cache-${modelCtor.name}`,
       codecs: {
         serializer: this.serializeCachedValue.bind(this),
@@ -96,8 +99,8 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
     this.typeMapping = buildTypeMapping(modelCtor);
 
     this.keyNames = {
-      primary: Object.keys(primaryKeys),
-      unique: uniqueKeys?.map?.((uK) => Object.keys(uK)) ?? [],
+      primary: Object.keys(primaryKeys).sort(),
+      unique: uniqueKeys?.map((uK) => Object.keys(uK)).sort() ?? [],
     };
 
     this.modelTtl = options.modelOptions.timeToLive ?? DEFAULT_TTL;
@@ -154,7 +157,7 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
       await this.cache.set(this.prefix, id, setValues, {
         expiresIn: this.modelTtl,
       });
-      return setValues as T;
+      return setValues;
     }
     return null;
   }
@@ -188,7 +191,7 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
 
     // Regardless of whether the model was retrieved from the cache or not, it's just a grab-bag of
     // values in an object. We need to rebuild the Sequelize model so it behaves in an expected fashion.
-    const model = this.repository.build(cached as any, {
+    const model = this.repository.build(cached as CreationAttributes<M>, {
       isNewRecord: false,
       raw: true,
     });
@@ -207,7 +210,7 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
    */
   async invalidate(instance: M) {
     const identifiers: string[] = [];
-    const values = instance.dataValues as Record<string, any>;
+    const values = instance.dataValues as Record<string, Identifier>;
     if (this.keyNames.primary.length === 1) {
       identifiers.push(
         buildId(
@@ -246,12 +249,12 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
     await this.cache.delAll(this.prefix);
   }
 
-  serializeCachedValue(_: string, value: any) {
+  serializeCachedValue(_: string, value: KeyColumnValue) {
     // The only type we need to take care of here is BigInt, since JSON.stringify doesn't handle that natively (for some reason).
     return typeof value === 'bigint' ? value.toString() : value;
   }
 
-  deserializeCachedValue(key: string, value: any) {
+  deserializeCachedValue(key: string, value: undefined | string | number) {
     return key in this.typeMapping && !isNil(value) ? this.typeMapping[key](value) : value;
   }
 }
@@ -409,9 +412,11 @@ function decodeIdentifier(
       for (const key of candidateKeys) {
         result.lookups[key] = candidate[key](result.lookups[key]!);
       }
+      return result as DecodedIdentifier;
     }
   }
-  return result as DecodedIdentifier;
+
+  throw new Error('Identifier unsupported by model');
 }
 
 function getKeys<M extends Model>(
@@ -486,11 +491,11 @@ function getDataTypeConverter(
     return Date;
   } else if (type instanceof DataTypes.VIRTUAL) {
     // Ignore virtual fields.
-    return (v) => v;
+    return identity;
   } else if (typeof type === 'string' && type.startsWith('BIT')) {
     // Bitfields are serialized into objects, so we need to convert them back
     // into buffers.
-    return (v) => {
+    return (v: { data: number[] }) => {
       return Buffer.from(v.data);
     };
   } else {

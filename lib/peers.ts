@@ -1,8 +1,10 @@
-import { format } from 'node:util';
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 import { AppMetrics } from './metrics';
 
 import type { GlobalCacheOptions } from '.';
+
+import { format } from 'node:util';
 
 // ─── Logger ──────────────────────────────────────────────────────────
 
@@ -168,9 +170,9 @@ class PromClientProvider implements IMetricsProvider {
     });
     return {
       startTimer(labels?: Partial<Record<L, string | number>>): StopTimerFn<L> {
-        const stop = histogram.startTimer(labels as any);
+        const stop = histogram.startTimer(labels);
         return (endLabels) => {
-          stop(endLabels as any);
+          stop(endLabels);
         };
       },
     };
@@ -234,13 +236,15 @@ function resolveMetrics(options: GlobalCacheOptions): IMetricsProvider {
     return new NoopMetricsProvider();
   }
 
+  const metricsOpt = options.metrics;
+
   // prom-client Registry exposes registerMetric
-  if (typeof (options.metrics as any).registerMetric === 'function') {
+  if ('registerMetric' in metricsOpt && typeof metricsOpt.registerMetric === 'function') {
     return new PromClientProvider(options.metrics);
   }
 
   // OpenTelemetry Meter exposes createCounter
-  if (typeof (options.metrics as any).createCounter === 'function') {
+  if ('createCounter' in metricsOpt && typeof metricsOpt.createCounter === 'function') {
     return new OtelProvider(options.metrics);
   }
 

@@ -19,6 +19,7 @@
     "useDefineForClassFields": true,
     "strict": true,
     "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo",
     "outDir": "./dist",
     "rootDir": ".",
     "declaration": true,
