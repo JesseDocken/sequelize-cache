@@ -37,7 +37,7 @@
     "test:integration:docker": "docker compose up -d --wait && vitest run test/; s=$?; docker compose down; exit $s",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build && npm run test:unit"
   },
   "license": "MIT",
   "dependencies": {
@@ -70,8 +70,6 @@
     "mocha": "^11.7.5",
     "pino": "^10.3.1",
     "prom-client": "^15.1.3",
-    "sinon": "^21.0.3",
-    "sinon-chai": "^4.0.1",
     "sqlite3": "^6.0.1",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.57.2",

@@ -10,10 +10,9 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes, ModelS
 
 // Mock RedisClient to break the circular dependency with EngineClient.
 // The actual RedisClient is never used in these tests since EngineClient.get() is mocked.
-vi.mock('../lib/engines/RedisClient', () => ({ RedisClient: class { } }));
+vi.mock('../../lib/engines/RedisClient', () => ({ RedisClient: class { } }));
 
-// ─── Test Models ────────────────────────────────────────────────────
-
+// Test Models
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: ':memory:',
@@ -60,8 +59,7 @@ SingleColPkUniq2.init({
   name: { type: DataTypes.STRING },
 }, { sequelize, modelName: 'SingleColPkUniq2', timestamps: false });
 
-// ─── Mock Setup ─────────────────────────────────────────────────────
-
+// Setup Mocks
 const mockEngine = {
   set: vi.fn(),
   get: vi.fn(),
@@ -78,8 +76,6 @@ function createCache(model: ModelStatic<any>, opts?: { uniqueKeys?: string[][] }
     modelOptions: { uniqueKeys: opts?.uniqueKeys, timeToLive: 3600 },
   }, ctx, model);
 }
-
-// ─── Tests ──────────────────────────────────────────────────────────
 
 describe('SequelizeModelCache', () => {
   beforeEach(() => {
