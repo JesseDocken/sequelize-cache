@@ -11,6 +11,7 @@ import {
 } from 'lodash';
 import { Op } from 'sequelize';
 
+import { AlreadyCachedError } from './errors/AlreadyCachedError';
 import { CacheUnavailableError } from './errors/CacheUnavailableError';
 import { PeerContext } from './peers';
 import { SequelizeModelCache } from './SequelizeModelCache';
@@ -125,6 +126,7 @@ const DEFAULT_TTL = 3600; // Default TTL of 1 hour
 export class SequelizeCache {
   #opt: GlobalCacheOptions;
   #ctx: PeerContext;
+  static #cachedModels = new WeakSet<ModelStatic<any>>();
 
   constructor(options: GlobalCacheOptions) {
     this.#opt = options;
@@ -160,6 +162,12 @@ export class SequelizeCache {
     const originalFindByPk = model.findByPk;
     const originalFindOne = model.findOne;
     const ctx = this.#ctx;
+
+    if (SequelizeCache.#cachedModels.has(model)) {
+      throw new AlreadyCachedError(model);
+    }
+
+    SequelizeCache.#cachedModels.add(model);
 
     model.findByPk = async function (
       id?: Identifier,
@@ -331,10 +339,10 @@ export class SequelizeCache {
       }
     }
 
-    model.addHook('afterUpdate', instanceHandler);
-    model.addHook('afterDestroy', instanceHandler);
-    model.addHook('afterBulkUpdate', bulkHandler);
-    model.addHook('afterBulkDestroy', bulkHandler);
+    model.addHook('afterUpdate', 'model-cache-update', instanceHandler);
+    model.addHook('afterDestroy', 'model-cache-destroy', instanceHandler);
+    model.addHook('afterBulkUpdate', 'model-cache-bulk-update', bulkHandler);
+    model.addHook('afterBulkDestroy', 'model-cache-bulk-destroy', bulkHandler);
   }
 }
 

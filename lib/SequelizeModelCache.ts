@@ -91,7 +91,15 @@ export class SequelizeModelCache<T extends object, M extends Model<T>> {
 
     this.lookupTypes = {
       primary: resolveType(primaryKeys) as KeyColumnType | Record<string, KeyColumnType>,
-      unique: uniqueKeys?.map?.((keys) => resolveType(keys)) as Record<string, KeyColumnType>[],
+      unique: uniqueKeys?.map?.((keys) => {
+        const resolved = resolveType(keys);
+        // resolveType collapses single-column definitions to a bare constructor.
+        // Unique keys always need a record so decodeIdentifier can match by field name.
+        if (typeof resolved === 'function') {
+          return { [Object.keys(keys)[0]]: resolved } as Record<string, KeyColumnType>;
+        }
+        return resolved as Record<string, KeyColumnType>;
+      }),
     };
 
     this.typeMapping = buildTypeMapping(modelCtor);
@@ -321,7 +329,7 @@ function decodeIdentifier(
   id: string,
   typeLookup: {
     primary: KeyColumnType | Record<string, KeyColumnType>;
-    unique: undefined | Record<string, KeyColumnType>[];
+    unique?: Record<string, KeyColumnType>[];
   }
 ): DecodedIdentifier {
   const result: {
@@ -400,10 +408,10 @@ function decodeIdentifier(
     return result as DecodedIdentifier;
   }
   const keyNames = Object.keys(result.lookups).sort();
-  const potentials = result.type === 'primary' ? [typeLookup.primary] : (typeLookup.unique ?? []);
+  const potentials: Record<string, KeyColumnType>[] =
+    result.type === 'primary' ? [typeLookup.primary as Record<string, KeyColumnType>] : (typeLookup.unique ?? []);
 
   for (const candidate of potentials) {
-    if (typeof candidate === 'function') continue;
     const candidateKeys = Object.keys(candidate).sort();
     if (isEqual(keyNames, candidateKeys)) {
       // Found a matching candidate, coerce values to the types we were provided.

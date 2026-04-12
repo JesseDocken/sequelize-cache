@@ -3,7 +3,8 @@
   "compilerOptions": {
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "declaration": false
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["index.ts", "lib/**/*.ts", "unit/**/*.ts", "test/**/*.ts", "sequelize-cached-model.d.ts"]
 }
