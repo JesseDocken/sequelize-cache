@@ -8,6 +8,8 @@ A caching layer for [Sequelize](https://sequelize.org/) models backed by high-pe
 
 ## Installation
 
+*Note:* You must be running in Node 20 or higher.
+
 ```bash
 npm install sequelize-cache
 ```

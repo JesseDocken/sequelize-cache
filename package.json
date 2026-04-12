@@ -20,7 +20,7 @@
     "./*": null
   },
   "engines": {
-    "node": ">=20.19"
+    "node": ">=20"
   },
   "files": [
     "dist/",
