@@ -1,225 +1,16 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 
-import { loadDebug } from './loadDebug';
 import { AppMetrics } from './metrics';
+import { DebugLogger } from './peers/loggers/DebugLogger';
+import { NoopLogger } from './peers/loggers/NoopLogger';
+import { StructuredLogger } from './peers/loggers/StructuredLogger';
+import { NoopMetricsProvider } from './peers/metrics/NoopMetricsProvider';
+import { OpenTelemetryProvider } from './peers/metrics/OpenTelemetryProvider';
+import { PrometheusProvider } from './peers/metrics/PrometheusProvider';
 
+import type { ILogger } from './peers/ILogger';
+import type { IMetricsProvider } from './peers/IMetricsProvider';
 import type { GlobalCacheOptions } from './SequelizeCache';
-
-import { format } from 'node:util';
-
-// #region Logger abstraction
-
-export interface ILogger {
-  debug(data: string | Record<string, unknown>, ...args: unknown[]): void;
-  info(data: string | Record<string, unknown>, ...args: unknown[]): void;
-  warn(data: string | Record<string, unknown>, ...args: unknown[]): void;
-  error(data: string | Record<string, unknown>, ...args: unknown[]): void;
-}
-
-export class NoopLogger implements ILogger {
-  debug() {}
-  info() {}
-  warn() {}
-  error() {}
-}
-
-export class DebugLogger implements ILogger {
-  #debug: (...args: unknown[]) => void;
-
-  constructor() {
-    this.#debug = loadDebug()('sequelize-cache');
-  }
-
-  debug(data: string | Record<string, unknown>, ...args: unknown[]) {
-    if (typeof data === 'string') {
-      this.#debug(data, ...args);
-    } else {
-      this.#debug('%O', data);
-    }
-  }
-
-  info(data: string | Record<string, unknown>, ...args: unknown[]) {
-    this.debug(data, ...args);
-  }
-
-  warn(data: string | Record<string, unknown>, ...args: unknown[]) {
-    this.debug(data, ...args);
-  }
-
-  error(data: string | Record<string, unknown>, ...args: unknown[]) {
-    this.debug(data, ...args);
-  }
-}
-
-export class StructuredLogger implements ILogger {
-  #logger: {
-    debug(...args: unknown[]): unknown;
-    info(...args: unknown[]): unknown;
-    warn(...args: unknown[]): unknown;
-    error(...args: unknown[]): unknown;
-  };
-
-  constructor(logger: GlobalCacheOptions['logger']) {
-    this.#logger = logger!;
-  }
-
-  debug(data: string | Record<string, unknown>, ...args: unknown[]) {
-    if (typeof data === 'string') {
-      this.#logger.debug(format(data, ...args));
-    } else {
-      this.#logger.debug(data);
-    }
-  }
-
-  info(data: string | Record<string, unknown>, ...args: unknown[]) {
-    if (typeof data === 'string') {
-      this.#logger.info(format(data, ...args));
-    } else {
-      this.#logger.info(data);
-    }
-  }
-
-  warn(data: string | Record<string, unknown>, ...args: unknown[]) {
-    if (typeof data === 'string') {
-      this.#logger.warn(format(data, ...args));
-    } else {
-      this.#logger.warn(data);
-    }
-  }
-
-  error(data: string | Record<string, unknown>, ...args: unknown[]) {
-    if (typeof data === 'string') {
-      this.#logger.error(format(data, ...args));
-    } else {
-      this.#logger.error(data);
-    }
-  }
-}
-
-// #endregion
-
-// #region Metric Abstraction
-export interface ICounter<L extends string = string> {
-  inc(labels?: Partial<Record<L, string | number>>): void;
-}
-
-export type StopTimerFn<L extends string = string> =
-  (endLabels?: Partial<Record<L, string | number>>) => void;
-
-export interface IHistogram<L extends string = string> {
-  startTimer(labels?: Partial<Record<L, string | number>>): StopTimerFn<L>;
-}
-
-export interface IMetricsProvider {
-  createCounter<const L extends string>(
-    name: string, help: string, labelNames: L[]
-  ): ICounter<L>;
-
-  createHistogram<const L extends string>(
-    name: string, help: string, labelNames: L[], buckets?: number[]
-  ): IHistogram<L>;
-}
-
-export class NoopMetricsProvider implements IMetricsProvider {
-  createCounter<const L extends string>(): ICounter<L> {
-    return { inc() {} };
-  }
-
-  createHistogram<const L extends string>(): IHistogram<L> {
-    return { startTimer() { return () => {}; } };
-  }
-}
-
-export class PrometheusProvider implements IMetricsProvider {
-  #registry: unknown;
-
-  constructor(registry: unknown) {
-    this.#registry = registry;
-  }
-
-  createCounter<const L extends string>(
-    name: string, help: string, labelNames: L[]
-  ): ICounter<L> {
-    const { Counter } = require('prom-client') as typeof import('prom-client');
-    const counter = new Counter({
-      name,
-      help,
-      labelNames,
-      registers: [this.#registry as import('prom-client').Registry],
-    });
-    return {
-      inc(labels?: Partial<Record<L, string | number>>) {
-        if (labels) {
-          counter.inc(labels as Record<string, string | number>);
-        } else {
-          counter.inc();
-        }
-      },
-    };
-  }
-
-  createHistogram<const L extends string>(
-    name: string, help: string, labelNames: L[], buckets?: number[]
-  ): IHistogram<L> {
-    const { Histogram } = require('prom-client') as typeof import('prom-client');
-    const histogram = new Histogram({
-      name,
-      help,
-      labelNames,
-      ...(buckets ? { buckets } : {}),
-      registers: [this.#registry as import('prom-client').Registry],
-    });
-    return {
-      startTimer(labels?: Partial<Record<L, string | number>>): StopTimerFn<L> {
-        const stop = histogram.startTimer(labels);
-        return (endLabels) => {
-          stop(endLabels);
-        };
-      },
-    };
-  }
-}
-
-export class OpenTelemetryProvider implements IMetricsProvider {
-  #meter: import('@opentelemetry/api').Meter;
-
-  constructor(meter: unknown) {
-    this.#meter = meter as import('@opentelemetry/api').Meter;
-  }
-
-  createCounter<const L extends string>(
-    name: string, help: string, _labelNames: L[]
-  ): ICounter<L> {
-    const counter = this.#meter.createCounter(name, { description: help });
-    return {
-      inc(labels?: Partial<Record<L, string | number>>) {
-        counter.add(1, labels as Record<string, string | number> | undefined);
-      },
-    };
-  }
-
-  createHistogram<const L extends string>(
-    name: string, help: string, _labelNames: L[], _buckets?: number[]
-  ): IHistogram<L> {
-    const histogram = this.#meter.createHistogram(name, {
-      description: help,
-      unit: 's',
-    });
-    return {
-      startTimer(labels?: Partial<Record<L, string | number>>): StopTimerFn<L> {
-        const start = performance.now();
-        return (endLabels) => {
-          const duration = (performance.now() - start) / 1000;
-          histogram.record(duration, { ...labels, ...endLabels } as Record<string, string | number>);
-        };
-      },
-    };
-  }
-}
-
-// #endregion
-
-// #region Dependency abstraction resolution
+import type { Registry } from 'prom-client';
 
 function resolveLogger(options: GlobalCacheOptions): ILogger {
   if (options.logger) {
@@ -242,7 +33,7 @@ function resolveMetrics(options: GlobalCacheOptions): IMetricsProvider {
 
   // prom-client Registry exposes registerMetric
   if ('registerMetric' in metricsOpt && typeof metricsOpt.registerMetric === 'function') {
-    return new PrometheusProvider(options.metrics);
+    return new PrometheusProvider(options.metrics as Registry);
   }
 
   // OpenTelemetry Meter exposes createCounter
@@ -268,5 +59,3 @@ export class PeerContext {
     this.metrics = new AppMetrics(resolveMetrics(options));
   }
 }
-
-// #endregion

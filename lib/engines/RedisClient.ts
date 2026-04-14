@@ -221,7 +221,3 @@ export class RedisClient extends BaseClient {
     return components.join(KEY_DELIMITER);
   }
 }
-
-export async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

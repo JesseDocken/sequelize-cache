@@ -1,4 +1,4 @@
-import type { ICounter, IHistogram, IMetricsProvider } from './peers';
+import type { ICounter, IHistogram, IMetricsProvider } from './peers/IMetricsProvider';
 
 /**
  * Application-level metric definitions for the cache library. All metrics are

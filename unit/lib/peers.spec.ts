@@ -1,35 +1,21 @@
 import { createNoopMeter } from '@opentelemetry/api';
 import { pino as PinoLogger } from 'pino';
 import { Registry } from 'prom-client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Logger as WinstonLogger } from 'winston';
 
+import { PeerContext } from '../../lib/peers';
+import { DebugLogger } from '../../lib/peers/loggers/DebugLogger';
+import { StructuredLogger } from '../../lib/peers/loggers/StructuredLogger';
+import { NoopMetricsProvider } from '../../lib/peers/metrics/NoopMetricsProvider';
+import { OpenTelemetryProvider } from '../../lib/peers/metrics/OpenTelemetryProvider';
+import { PrometheusProvider } from '../../lib/peers/metrics/PrometheusProvider';
+
+// The "debug peer is unavailable" scenario lives in peers.no-debug.spec.ts.
+
 describe('PeerContext', () => {
-  afterEach(() => {
-    vi.doUnmock('../../lib/loadDebug');
-    vi.resetModules();
-  });
-
   describe('constructor', () => {
-    it('no logger or metrics returns noop implementations', async () => {
-      vi.doMock('../../lib/loadDebug', () => ({
-        loadDebug: () => { throw new Error('Cannot resolve debug'); },
-      }));
-
-      const { NoopLogger, NoopMetricsProvider, PeerContext } = await import('../../lib/peers.js');
-      const context = new PeerContext({
-        engine: {
-          connection: null as any,
-          type: 'redis',
-        },
-      });
-
-      expect(context.log).to.be.instanceOf(NoopLogger);
-      expect(context.metrics.provider).to.be.instanceOf(NoopMetricsProvider);
-    });
-
-    it('debug module returns the DebugLogger', async () => {
-      const { DebugLogger, NoopMetricsProvider, PeerContext } = await import('../../lib/peers.js');
+    it('debug module returns the DebugLogger', () => {
       const context = new PeerContext({
         engine: {
           connection: null as any,
@@ -41,8 +27,7 @@ describe('PeerContext', () => {
       expect(context.metrics.provider).to.be.instanceOf(NoopMetricsProvider);
     });
 
-    it('pino log provider returns the StructuredLogger', async () => {
-      const { StructuredLogger, NoopMetricsProvider, PeerContext } = await import('../../lib/peers.js');
+    it('pino log provider returns the StructuredLogger', () => {
       const context = new PeerContext({
         engine: {
           connection: null as any,
@@ -55,8 +40,7 @@ describe('PeerContext', () => {
       expect(context.metrics.provider).to.be.instanceOf(NoopMetricsProvider);
     });
 
-    it('winston log provider returns the StructuredLogger', async () => {
-      const { StructuredLogger, NoopMetricsProvider, PeerContext } = await import('../../lib/peers.js');
+    it('winston log provider returns the StructuredLogger', () => {
       const context = new PeerContext({
         engine: {
           connection: null as any,
@@ -69,8 +53,7 @@ describe('PeerContext', () => {
       expect(context.metrics.provider).to.be.instanceOf(NoopMetricsProvider);
     });
 
-    it('Prometheus registry returns PrometheusProvider', async () => {
-      const { DebugLogger, PrometheusProvider, PeerContext } = await import('../../lib/peers.js');
+    it('Prometheus registry returns PrometheusProvider', () => {
       const context = new PeerContext({
         engine: {
           connection: null as any,
@@ -83,8 +66,7 @@ describe('PeerContext', () => {
       expect(context.metrics.provider).to.be.instanceOf(PrometheusProvider);
     });
 
-    it('OpenTelemetry meter returns OpenTelemetryProvider', async () => {
-      const { DebugLogger, OpenTelemetryProvider, PeerContext } = await import('../../lib/peers.js');
+    it('OpenTelemetry meter returns OpenTelemetryProvider', () => {
       const context = new PeerContext({
         engine: {
           connection: null as any,
@@ -95,6 +77,19 @@ describe('PeerContext', () => {
 
       expect(context.log).to.be.instanceOf(DebugLogger);
       expect(context.metrics.provider).to.be.instanceOf(OpenTelemetryProvider);
+    });
+
+    it('Incompatible metric provider returns NoopProvider', () => {
+      const context = new PeerContext({
+        engine: {
+          connection: null as any,
+          type: 'redis',
+        },
+        metrics: {} as any,
+      });
+
+      expect(context.log).to.be.instanceOf(DebugLogger);
+      expect(context.metrics.provider).to.be.instanceOf(NoopMetricsProvider);
     });
   });
 });
