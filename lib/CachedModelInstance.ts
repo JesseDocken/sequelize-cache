@@ -2,6 +2,8 @@ import { clone, identity, invert, isArray, isEqual, isFunction, isNil, transform
 import { DataTypes } from 'sequelize';
 
 import { createEngineClient } from './engines';
+import { CouldNotBuildIdentifierError } from './errors/CouldNotBuildIdentifierError';
+import { InvalidIdentifierError } from './errors/InvalidIdentifierError';
 
 import type { BaseClient } from './engines/EngineClient';
 import type { PeerContext } from './peers';
@@ -53,7 +55,7 @@ export type ModelKeyLookup = {
  * combination of keys. If the model has not yet been cached, it will automatically be retrieved from the
  * underlying database table, stored in the cache, and returned as a Sequelize model instance.
  */
-export class SequelizeModelCache<T extends object, M extends Model<T>> {
+export class CachedModelInstance<T extends object, M extends Model<T>> {
   private ctx: PeerContext;
   private cache: BaseClient;
   private prefix: string;
@@ -281,19 +283,19 @@ const VALUE_SEPARATOR = '§val§';
  * @param ids the identifiers to use to build the cache identifier
  * @param fields the identifier field names
  * @returns the cache identifier
- * @throws {Error} if `ids` is empty
- * @throws {Error} if `fields` is not provided but `type` equals `unique`
- * @throws {Error} if `fields` is provided but differs in length from `ids`
+ * @throws {CouldNotBuildIdentifierError} if `ids` is empty
+ * @throws {CouldNotBuildIdentifierError} if `fields` is not provided but `type` equals `unique`
+ * @throws {CouldNotBuildIdentifierError} if `fields` is provided but differs in length from `ids`
  */
 export function buildId(type: KeyType, ids: Identifier[], fields?: string[]) {
   if (fields && fields.length !== ids.length) {
-    throw new Error(`Expected ${ids.length} field(s), but got ${fields.length}`);
+    throw new CouldNotBuildIdentifierError(`Expected ${ids.length} field(s), but got ${fields.length}`);
   }
   if (ids.length === 0) {
-    throw new Error('At least one identifier must be specified');
+    throw new CouldNotBuildIdentifierError('At least one identifier must be specified');
   }
   if ((type === 'unique' || ids.length > 1) && !fields) {
-    throw new Error('Fields required when multiple identifiers provided or using unique key');
+    throw new CouldNotBuildIdentifierError('Fields required when multiple identifiers provided or using unique key');
   }
   let lookup = `${KeyPrefix[type]}${fields ? KEY_SEPARATOR : VALUE_SEPARATOR}`;
   for (let i = 0; i < ids.length; i++) {
@@ -325,6 +327,7 @@ type DecodedIdentifier =
  * @param id the cache identifier
  * @param typeLookup the mapping of supported lookup methods to a type constructor
  * @returns the mapping between fields and the type constructor
+ * @throws {InvalidIdentifierError} If the provided `id` cannot be decoded properly
  */
 export function decodeIdentifier(
   id: string,
@@ -344,7 +347,7 @@ export function decodeIdentifier(
   result.type = prefixLookup[id.slice(0, 2)];
 
   if (!result.type) {
-    throw new Error('Invalid identifier type');
+    throw new InvalidIdentifierError('Invalid type');
   }
 
   let index = 2;
@@ -361,7 +364,7 @@ export function decodeIdentifier(
     if (parsing === 'key') {
       const upTo = id.indexOf(VALUE_SEPARATOR, index);
       if (upTo < 0) {
-        throw new Error('Invalid identifier structure');
+        throw new InvalidIdentifierError('Invalid structure');
       }
       currentKey = id.slice(index, upTo);
       result.lookups ??= {};
@@ -375,7 +378,7 @@ export function decodeIdentifier(
         result.lookup = id.slice(index, upTo);
       } else {
         if (!result.lookups) {
-          throw new Error('Invalid identifier structure');
+          throw new InvalidIdentifierError('Invalid structure');
         }
         result.lookups[currentKey] = id.slice(index, upTo);
       }
@@ -383,16 +386,16 @@ export function decodeIdentifier(
       parsing = 'key';
       index = upTo + KEY_SEPARATOR.length;
     } else {
-      throw new Error('Invalid identifier structure');
+      throw new InvalidIdentifierError('Invalid structure');
     }
   }
 
   if (!result.type) {
-    throw new Error('Invalid identifier type');
+    throw new InvalidIdentifierError('Invalid type');
   }
 
   if (!result.lookup && !result.lookups) {
-    throw new Error('Invalid identifier structure');
+    throw new InvalidIdentifierError('Invalid structure');
   }
 
   // Now we want to convert the values to the types matching the columns provided. If no columns were given, then
@@ -423,7 +426,7 @@ export function decodeIdentifier(
     }
   }
 
-  throw new Error('Identifier unsupported by model');
+  throw new InvalidIdentifierError('Unsupported by model');
 }
 
 export function getKeys<M extends Model>(
