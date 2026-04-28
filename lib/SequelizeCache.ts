@@ -11,12 +11,13 @@ import {
 } from 'lodash';
 import { Op } from 'sequelize';
 
+import { CachedModelInstance } from './CachedModelInstance';
 import { AlreadyCachedError } from './errors/AlreadyCachedError';
 import { CacheUnavailableError } from './errors/CacheUnavailableError';
+import { NonconformantQueryError } from './errors/NonconformantQueryError';
 import { PeerContext } from './peers';
-import { SequelizeModelCache } from './SequelizeModelCache';
 
-import type { KeyType, ModelKeyLookup } from './SequelizeModelCache';
+import type { KeyType, ModelKeyLookup } from './CachedModelInstance';
 import type { Meter } from '@opentelemetry/api';
 import type { Redis } from 'ioredis';
 import type { Logger as PinoLogger } from 'pino';
@@ -162,7 +163,7 @@ export class SequelizeCache {
     model: ModelStatic<M>,
     options: CacheOptions<M> | UntypedCacheOptions = {}
   ) {
-    const cache = new SequelizeModelCache({
+    const cache = new CachedModelInstance({
       engine: this.#opt.engine,
       caching: this.#opt.caching,
       modelOptions: {
@@ -427,7 +428,7 @@ export function shouldUseCache<M extends Model>(
   // Caching is unavailable if you use scopes.
   if ('scoped' in model && model.scoped) {
     if (cacheOpt.fallback === 'fail') {
-      throw new Error('Query is nonconformant');
+      throw new NonconformantQueryError('model is scoped');
     } else {
       return false;
     }
@@ -440,7 +441,7 @@ export function shouldUseCache<M extends Model>(
 
   if (notPermitted.length > 0) {
     if (cacheOpt.fallback === 'fail') {
-      throw new Error('Query is nonconformant');
+      throw new NonconformantQueryError(`unsupported options: ${notPermitted.join(', ')}`);
     } else {
       return false;
     }
@@ -472,7 +473,7 @@ export function shouldUseCache<M extends Model>(
 
   // We didn't meet the above conditions, so we won't use the cache.
   if (cacheOpt.fallback === 'fail') {
-    throw new Error('Query is nonconformant');
+    throw new NonconformantQueryError('Invalid where condition');
   } else {
     return false;
   }

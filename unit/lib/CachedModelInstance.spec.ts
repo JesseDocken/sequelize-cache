@@ -2,9 +2,9 @@ import { pick } from 'lodash';
 import { DataTypes, Model, Sequelize } from 'sequelize';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildId, CachedModelInstance, decodeIdentifier, resolveType } from '../../lib/CachedModelInstance';
 import * as engineFactory from '../../lib/engines';
 import { PeerContext } from '../../lib/peers';
-import { buildId, decodeIdentifier, resolveType, SequelizeModelCache } from '../../lib/SequelizeModelCache';
 
 import type { BaseClient } from '../../lib/engines/EngineClient';
 import type { CreationOptional, InferAttributes, InferCreationAttributes, ModelStatic } from 'sequelize';
@@ -68,13 +68,13 @@ const mockEngine = {
 const ctx = new PeerContext({ engine: { connection: {} as any, type: 'redis' } });
 
 function createCache(model: ModelStatic<any>, opts?: { uniqueKeys?: string[][] }) {
-  return new SequelizeModelCache({
+  return new CachedModelInstance({
     engine: { connection: {} as any, type: 'redis' },
     modelOptions: { uniqueKeys: opts?.uniqueKeys, timeToLive: 3600 },
   }, ctx, model);
 }
 
-describe('SequelizeModelCache', () => {
+describe('CachedModelInstance', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockEngine.set.mockReset().mockResolvedValue(undefined);
@@ -358,12 +358,12 @@ describe('SequelizeModelCache', () => {
 
     it('invalid identifier - bad type - throws an error', () => {
       expect(() => decodeIdentifier('abc', { primary: String }))
-        .toThrow('Invalid identifier type');
+        .toThrow('Cache identifier is invalid: Invalid type');
     });
 
     it('invalid identifier - field, but no ID - throws an error', () => {
       expect(() => decodeIdentifier('pk»key»id', { primary: String }))
-        .toThrow('Invalid identifier structure');
+        .toThrow('Cache identifier is invalid: Invalid structure');
     });
 
     it('pk§val§123 - numeric - returns primary key of number 123', () => {
