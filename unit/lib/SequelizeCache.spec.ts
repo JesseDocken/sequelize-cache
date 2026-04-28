@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearCachedModels, keysMatchCandidates, SequelizeCache, shouldUseCache } from '../../lib/SequelizeCache';
 
-import type { ModelKeyLookup } from '../../lib/SequelizeModelCache';
+import type { ModelKeyLookup } from '../../lib/CachedModelInstance';
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
-vi.mock('../../lib/SequelizeModelCache', () => ({ SequelizeModelCache: class { } }));
+vi.mock('../../lib/CachedModelInstance', () => ({ CachedModelInstance: class { } }));
 vi.mock('../../lib/peers', () => ({ PeerContext: class { } }));
 
 // Test Models
