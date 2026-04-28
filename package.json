@@ -1,7 +1,7 @@
 {
   "name": "sequelize-cache",
   "description": "A model cache layer that integrates with Sequelize with support for Redis.",
-  "version": "0.0.1",
+  "version": "0.5.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/JesseDocken/sequelize-cache"
@@ -37,6 +37,7 @@
     "test:integration:docker": "docker compose up -d --wait && vitest run test/; s=$?; docker compose down; exit $s",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:docker": "docker compose up -d --wait && vitest run --coverage; s=$?; docker compose down; exit $s",
     "prepublishOnly": "npm run clean && npm run build && npm run test:unit"
   },
   "license": "MIT",

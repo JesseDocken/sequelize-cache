@@ -1,10 +1,15 @@
 # Sequelize Cache
 
 [![npm version](https://img.shields.io/npm/v/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
-[![CI](https://github.com/JesseDocken/sequelize-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/JesseDocken/sequelize-cache/actions/workflows/ci.yml)
+[![CI](https://github.com/JesseDocken/sequelize-cache/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/JesseDocken/sequelize-cache/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/JesseDocken/sequelize-cache/branch/main/graph/badge.svg)](https://codecov.io/gh/JesseDocken/sequelize-cache)
+[![Node](https://img.shields.io/node/v/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
+[![Types](https://img.shields.io/npm/types/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A caching layer for [Sequelize](https://sequelize.org/) models backed by high-performance caching datastores such as Redis. Cache management is designed to be seamless and work transparently in your application on an opt-in basis, and the library is designed to never break your application — cache failures fall back gracefully to the database.
+
+For a deeper look at how the library operates internally — query routing, invalidation guarantees, failure modes, and operational considerations — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Installation
 
@@ -28,9 +33,9 @@ The following optional peer dependencies enable additional features:
 |---------|---------|
 | `prom-client` | Prometheus metrics |
 | `@opentelemetry/api` | OpenTelemetry metrics |
-| `pino` | Library logging |
-| `winston` | Library logging |
-| `debug` | Debug-level logging (used automatically as a fallback if no structured logger is provided) |
+| `pino` | Logging |
+| `winston` | Logging |
+| `debug` | Logging |
 
 ## Quick Start
 
