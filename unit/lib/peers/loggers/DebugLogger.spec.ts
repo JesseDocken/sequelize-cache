@@ -19,9 +19,9 @@ describe('DebugLogger', () => {
     mocks.createDebug.mockClear();
   });
 
-  it('initializes the underlying debug fn with the sequelize-cache namespace', () => {
+  it('initializes the underlying debug fn with the sqlcache namespace', () => {
     new DebugLogger();
-    expect(mocks.createDebug).toHaveBeenCalledWith('sequelize-cache');
+    expect(mocks.createDebug).toHaveBeenCalledWith('sqlcache');
   });
 
   describe('debug()', () => {

@@ -6,7 +6,7 @@ export class DebugLogger implements ILogger {
   #debug: (...args: unknown[]) => void;
 
   constructor() {
-    this.#debug = loadDebug()('sequelize-cache');
+    this.#debug = loadDebug()('sqlcache');
   }
 
   debug(data: string | Record<string, unknown>, ...args: unknown[]) {
