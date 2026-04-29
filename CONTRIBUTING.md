@@ -1,4 +1,4 @@
-# Contributing to sequelize-cache
+# Contributing to sequelize-model-cache
 
 Thank you for your interest in contributing! This document explains how to set up the project for local development, run the test suite, and submit changes.
 
@@ -13,8 +13,8 @@ Thank you for your interest in contributing! This document explains how to set u
 Fork the repository, clone your fork, and install dependencies:
 
 ```bash
-git clone https://github.com/<your username>/sequelize-cache.git
-cd sequelize-cache
+git clone https://github.com/<your username>/sequelize-model-cache.git
+cd sequelize-model-cache
 npm install
 ```
 
@@ -93,7 +93,7 @@ npm run clean && npm run build
 ## Project Structure
 
 ```
-sequelize-cache/
+sequelize-model-cache/
 ├── index.ts                     # Package entry point
 ├── lib/
 │   ├── index.ts                 # SequelizeCache class, findByPk/findOne overrides

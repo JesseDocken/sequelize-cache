@@ -2,9 +2,9 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in `sequelize-cache`, **DO NOT OPEN A PUBLIC ISSUE.** Instead, report it privately through GitHub's security advisory feature:
+If you discover a security vulnerability in `sequelize-model-cache`, **DO NOT OPEN A PUBLIC ISSUE.** Instead, report it privately through GitHub's security advisory feature:
 
-1. Navigate to the [Security Advisories](https://github.com/JesseDocken/sequelize-cache/security/advisories) page for this repository.
+1. Navigate to the [Security Advisories](https://github.com/JesseDocken/sequelize-model-cache/security/advisories) page for this repository.
 2. Click **"Report a vulnerability"**.
 3. Provide as much detail as possible, including steps to reproduce, the potential impact, and any suggested fixes.
 

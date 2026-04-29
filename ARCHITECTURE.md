@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how `sequelize-cache` operates: how it integrates with Sequelize, how queries are routed between cache and database, what invalidation does and does not guarantee, and where the sharp edges are.
+This document describes how `sequelize-model-cache` operates: how it integrates with Sequelize, how queries are routed between cache and database, what invalidation does and does not guarantee, and where the sharp edges are.
 
 The intended audience is primarily **operators** running an application that uses the library — people who need to reason about latency, consistency, failure modes, and the impact of schema changes — but it also serves as an onboarding document for **contributors**. References to internals are included where they meaningfully change operational behavior.
 

@@ -1,10 +1,10 @@
-# Sequelize Cache
+# Sequelize Model Cache
 
-[![npm version](https://img.shields.io/npm/v/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
-[![CI](https://github.com/JesseDocken/sequelize-cache/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/JesseDocken/sequelize-cache/actions/workflows/main.yml)
-[![codecov](https://codecov.io/gh/JesseDocken/sequelize-cache/branch/main/graph/badge.svg)](https://codecov.io/gh/JesseDocken/sequelize-cache)
-[![Node](https://img.shields.io/node/v/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
-[![Types](https://img.shields.io/npm/types/sequelize-cache.svg)](https://www.npmjs.com/package/sequelize-cache)
+[![npm version](https://img.shields.io/npm/v/sequelize-model-cache.svg)](https://www.npmjs.com/package/sequelize-model-cache)
+[![CI](https://github.com/JesseDocken/sequelize-model-cache/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/JesseDocken/sequelize-model-cache/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/JesseDocken/sequelize-model-cache/branch/main/graph/badge.svg)](https://codecov.io/gh/JesseDocken/sequelize-model-cache)
+[![Node](https://img.shields.io/node/v/sequelize-model-cache.svg)](https://www.npmjs.com/package/sequelize-model-cache)
+[![Types](https://img.shields.io/npm/types/sequelize-model-cache.svg)](https://www.npmjs.com/package/sequelize-model-cache)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A caching layer for [Sequelize](https://sequelize.org/) models backed by high-performance caching datastores such as Redis. Cache management is designed to be seamless and work transparently in your application on an opt-in basis, and the library is designed to never break your application — cache failures fall back gracefully to the database.
@@ -18,7 +18,7 @@ __NOTE:__ The API for this library is still evolving and may break compatibility
 *Note:* You must be running in Node 20 or higher.
 
 ```bash
-npm install sequelize-cache
+npm install sequelize-model-cache
 ```
 
 ### Peer Dependencies
@@ -44,7 +44,7 @@ The following optional peer dependencies enable additional features:
 ```typescript
 import { Sequelize, DataTypes, Model } from 'sequelize';
 import Redis from 'ioredis';
-import { SequelizeCache } from 'sequelize-cache';
+import { SequelizeCache } from 'sequelize-model-cache';
 
 // Set up Sequelize and Redis as usual
 const sequelize = new Sequelize('sqlite::memory:');
@@ -232,10 +232,10 @@ const cache = new SequelizeCache({
 
 ### Debug Module
 
-If no logger is provided but the `debug` package is installed, the library automatically uses it under the `sequelize-cache` namespace:
+If no logger is provided but the `debug` package is installed, the library automatically uses it under the `sqlcache` namespace:
 
 ```bash
-DEBUG=sequelize-cache node app.js
+DEBUG=sqlcache node app.js
 ```
 
 ## Metrics

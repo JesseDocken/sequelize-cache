@@ -28,7 +28,7 @@ What actually happened. Include any error messages, stack traces, or log output.
 ## Environment
  
 - **Node.js version:**
-- **sequelize-cache version:**
+- **sequelize-model-cache version:**
 - **Sequelize version:**
 - **Cache engine and version** (e.g., Redis 7.2, ioredis 5.x):
 - **Operating environment:**
