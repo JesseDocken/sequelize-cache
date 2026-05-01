@@ -1,7 +1,7 @@
 {
   "name": "sequelize-model-cache",
   "description": "A model cache layer that integrates with Sequelize with support for Redis.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JesseDocken/sequelize-model-cache.git"
